@@ -816,6 +816,7 @@ void SearchReplace(void)
 int main(int argc, char *argv[])
 {
    int i;            /* number of files on command line */
+   long nMatches;     /* number of matches in filter mode */
 
 #if defined(__ZTC__)
    /* Automatic response file expansion */
@@ -885,7 +886,6 @@ int main(int argc, char *argv[])
       if (fOverWrite || fForce)
          Abort("command error, the 'o' or 'f' option is meaningless in 'filter' mode");
 
-      long nMatches;
       nMatches = StreamSearchReplace();
       return Ctrl.fQuiet ? (nMatches > 0 ? 0 : 1) : EXIT_SUCCESS;
    }
