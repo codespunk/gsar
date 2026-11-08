@@ -86,6 +86,7 @@ char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 char  fListWithoutMatches = 0; /* list files without matches */
 char  fListWithMatches = 0; /* list files with matches */
 char  fCountOnly = 0; /* print binary occurrence counts */
+char  fNullNames = 0; /* NUL-terminate -l/-L filenames */
 long  nMaxMatches = -1L; /* -1 means unlimited; applies to searches only */
 
 /* Usage text
@@ -108,6 +109,7 @@ char *Usage[] =
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
   "-L         List input files without matches",
   "-l         List input files containing matches",
+  "-Z         Terminate -l/-L filenames with NUL instead of newline",
   "-m N       Stop after N matches per input (0 means no matches)",
   "-C         Count binary pattern occurrences per input",
   "Search exit status: 0=match, 1=no match, 2=error",
@@ -367,7 +369,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsLC")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsLCZ")) != EOF)
       {
          switch (c)
          {
@@ -474,6 +476,9 @@ int GetArgs(int argc, char *argv[])
                break;
             case 's':
                fSuppressErrors = 1;
+               break;
+            case 'Z':
+               fNullNames = 1;
                break;
             case 'L':
                fListWithoutMatches = 1;
@@ -608,7 +613,7 @@ long StreamSearchReplace(void)
 
       if ((fListWithoutMatches && nMatches == 0) ||
           (fListWithMatches && nMatches > 0))
-         fprintf(stdout, "%s\n", Ctrl.pInputFile);
+         fprintf(stdout, "%s%c", Ctrl.pInputFile, fNullNames ? '\0' : '\n');
 
       if (fCountOnly)
          fprintf(stdout, "%s: %ld\n", Ctrl.pInputFile, nMatches);
@@ -721,11 +726,11 @@ int FileSearch(void)
 
       if (fListWithoutMatches && nMatches == 0)
       {
-         fprintf(stdout, "%s\n", Ctrl.pInputFile);
+         fprintf(stdout, "%s%c", Ctrl.pInputFile, fNullNames ? '\0' : '\n');
          fWithoutMatch = 1;
       }
       if (fListWithMatches && nMatches > 0)
-         fprintf(stdout, "%s\n", Ctrl.pInputFile);
+         fprintf(stdout, "%s%c", Ctrl.pInputFile, fNullNames ? '\0' : '\n');
 
       if (nMatches > 0)
       {
@@ -1006,6 +1011,9 @@ int main(int argc, char *argv[])
 
    if (i != 2 && fForce && !fOverWrite)
       Abort("command error, two file names are required to use the 'f' option");
+
+   if (fNullNames && !fListWithMatches && !fListWithoutMatches)
+      Abort("command error, -Z requires -l or -L");
 
    if (fCountOnly && (fSearchReplace || Ctrl.fQuiet ||
                       fListWithoutMatches || fListWithMatches))
