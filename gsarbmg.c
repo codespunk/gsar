@@ -198,11 +198,11 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
    int  Cnt = BUFSIZ;
 
    long nMatches = 0;                  /* number of matches found */
+   long nBytes;                        /* number of bytes read */
+   unsigned long FileOfs = 0;          /* current file offset */
 
    if (nMaxMatches == 0)
       return 0;
-   long nBytes;                        /* number of bytes read */
-   unsigned long FileOfs = 0;          /* current file offset */
 
    for (;;)
    {
