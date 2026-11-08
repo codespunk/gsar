@@ -109,13 +109,13 @@ char *Usage[] =
   "-L         List input files without matches",
   "-l         List input files containing matches",
   "-m N       Stop after N matches per input (0 means no matches)",
-  "-C         Count binary pattern occurrences per input",
+  "-c         Count binary pattern occurrences per input",
   "Search exit status: 0=match, 1=no match, 2=error",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
   "-o         Overwrite the existing input file",
-  "-c[n]      show textual Context of match, 'n' is number of bytes in context",
-  "-x[n]      show context as a heX dump, 'n' is number of bytes in context",
+  "-C[n]      show textual Context of match, 'n' is number of bytes in context",
+  "-X[n]      show context as a heX dump, 'n' is number of bytes in context",
   "-b         display Byte offsets of matches in file",
   "-t         Terse output: filespec and number of matches (default)",
   "-h         suppress display of filespec when displaying context or offsets",
@@ -367,7 +367,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsLC")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoC::X::blhtd::u::qsLc")) != EOF)
       {
          switch (c)
          {
@@ -405,7 +405,7 @@ int GetArgs(int argc, char *argv[])
                pFileList[j++] = pOptArg;
                pFileList[j] = NULL;
                break;
-            case 'C':
+            case 'c':
                fCountOnly = 1;
                break;
             case 'm':
@@ -490,15 +490,15 @@ int GetArgs(int argc, char *argv[])
             case 'h':
                Ctrl.fFileSpec = 0;      /* turn off filespec */
                break;
-            case 'x':
+            case 'X':
                Ctrl.fTextual = -1;      /* signal fall through */
                Ctrl.fHex = 1;           /* display context in hex */
-            case 'c':
-               if (Ctrl.fTextual == -1)  /* entered through case 'x' */
+            case 'C':
+               if (Ctrl.fTextual == -1)  /* entered through case 'X' */
                   Ctrl.fTextual = 0;        /* reset sentinel value  */
                else
                {
-                  Ctrl.fHex = 0;        /* entered through case 'c' */
+                  Ctrl.fHex = 0;        /* entered through case 'C' */
                   Ctrl.fTextual = 1;    /* display textual context */
                }
 
@@ -1009,7 +1009,7 @@ int main(int argc, char *argv[])
 
    if (fCountOnly && (fSearchReplace || Ctrl.fQuiet ||
                       fListWithoutMatches || fListWithMatches))
-      Abort("command error, -C cannot be combined with replacement, -q, -l, or -L");
+      Abort("command error, -c cannot be combined with replacement, -q, -l, or -L");
 
    if (fCountOnly)
       Ctrl.fVerbose = 0;
