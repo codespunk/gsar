@@ -90,9 +90,10 @@ char *Usage[] =
 {
   PROGRAM_NAME ", ver " PROGRAM_VER " -- Copyright (C) 1992-96 Tormod Tjaberg & Hans Peter Verne",
   "",
-  "Usage: gsar [options] [infile(s)] [outfile]",
+  "Usage: gsar [options] pattern [infile(s)] [outfile]",
   "Options are:",
-  "-e<string> Search string",
+  "-e<string> Explicit search string (instead of positional pattern)",
+  "           Pattern is the first non-option argument unless -e is used",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
@@ -500,6 +501,18 @@ int GetArgs(int argc, char *argv[])
          fputc('\n', Ctrl.fpMsg);
       }
       exit(EXIT_SUCCESS);
+   }
+
+   /* Without -e, the first non-option argument is the search pattern.
+    * Keep -e and the built-in CR/LF conversion patterns unchanged.
+    */
+   if (nItemsSearch == 0 && j > 0)
+   {
+      nItemsSearch = GetPattern(pFileList[0], SearchBuf);
+      for (i = 1; i < j; i++)
+         pFileList[i - 1] = pFileList[i];
+      --j;
+      pFileList[j] = NULL;
    }
 
    Ctrl.fVerbose = (Ctrl.fTextual ||
