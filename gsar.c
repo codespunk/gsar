@@ -96,6 +96,7 @@ char *Usage[] =
   "           Pattern is the first non-option argument unless -e is used",
   "           Use -- to end options (for patterns or filenames starting with -)",
   "           A single - input filename reads stdin",
+  "           - may also be mixed with named files during search",
   "           Search reads stdin when no input file is given and stdin is redirected",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
@@ -642,18 +643,31 @@ int FileSearch(void)
    {
       Ctrl.pInputFile = *pFileList++;
 
-      if (!fCheckFile(Ctrl.pInputFile))
+      if (strcmp(Ctrl.pInputFile, "-") == 0)
       {
-         fError = 1;
-         continue;
+#ifdef MSDOS
+         if (isatty(fileno(stdin)))
+            Abort("error, input from tty is not supported under MSDOS");
+         setmode(fileno(stdin), O_BINARY);
+#endif
+         Ctrl.fpIn = stdin;
+         Ctrl.pInputFile = "stdin";
       }
-
-      if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
+      else
       {
-         if (!fSuppressErrors)
-            fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
-         fError = 1;
-         continue;
+         if (!fCheckFile(Ctrl.pInputFile))
+         {
+            fError = 1;
+            continue;
+         }
+
+         if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
+         {
+            if (!fSuppressErrors)
+               fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+            fError = 1;
+            continue;
+         }
       }
 
       Ctrl.fpMsg = stdout;
@@ -666,7 +680,8 @@ int FileSearch(void)
 #endif
 
       nMatches = BMG_Search(&Ctrl);
-      fclose(Ctrl.fpIn);
+      if (Ctrl.fpIn != stdin)
+         fclose(Ctrl.fpIn);
 
       if (nMatches > 0)
       {
