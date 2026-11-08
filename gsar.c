@@ -94,6 +94,7 @@ char *Usage[] =
   "-s<string> Search string ",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
+  "-q         Quiet search; stop at first match (0=found, 1=not found)",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
   "-o         Overwrite the existing input file",
@@ -351,7 +352,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|s::r::iBfoc::x::blhd::u::F")) != EOF)
+      while ((c = GetOpt(argc, argv, "|s::r::iBfoc::x::blhd::u::Fq")) != EOF)
       {
          switch (c)
          {
@@ -437,6 +438,9 @@ int GetArgs(int argc, char *argv[])
                break;
             case 'F':
                fFilter = 1;
+               break;
+            case 'q':
+               Ctrl.fQuiet = 1;
                break;
             case 'B':
                fBuffers = 1;
@@ -532,7 +536,7 @@ void StreamSearchReplace(void)
    {
       nMatches = BMG_Search(&Ctrl);
 
-      if (nMatches > 0)
+      if (nMatches > 0 && !Ctrl.fQuiet)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
@@ -581,9 +585,10 @@ char fCheckFile(char *pFileName)
  * to process are found in pFileList. Files that cannot be
  * opened are just ignored.
  */
-void FileSearch(void)
+int FileSearch(void)
 {
    long  nMatches;
+   int   fFound = 0;
 
    while (*pFileList != NULL)
    {
@@ -611,9 +616,17 @@ void FileSearch(void)
       fclose(Ctrl.fpIn);
 
       if (nMatches > 0)
+      {
+         fFound = 1;
+         if (Ctrl.fQuiet)
+            return 0;
+      }
+
+      if (nMatches > 0 && !Ctrl.fQuiet)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
+   return Ctrl.fQuiet && !fFound ? 1 : 0;
 }
 
 /* Performs a search and replace on a specific outputfile
@@ -879,8 +892,7 @@ int main(int argc, char *argv[])
       if (fOverWrite || fForce)
          Abort("command error, the 'o' or 'f' option is meaningless in 'search' mode");
 
-      FileSearch();
-      return EXIT_SUCCESS;
+      return FileSearch();
    }
 
    /* Do a search and replace with specific output file
