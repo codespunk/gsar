@@ -96,17 +96,15 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
          pSC = pStart + first;
       }
 
-      pEC = pSC + pCtrl->Context;
-      if (pEC > pEnd)                  /* outside the buffer ? */
+      if ((size_t) (pEnd - pSC) < (size_t) pCtrl->Context)
       {
          pEC = pEnd;
-
-         /* if we have to truncate to pEnd readjust the start
-          * of the context if possible.
-          */
+         /* Shift the window left when it reaches the end of input. */
          if ((size_t) (pEC - pStart) > (size_t) pCtrl->Context)
             pSC = pEC - pCtrl->Context;
       }
+      else
+         pEC = pSC + pCtrl->Context;
 
       /* display a hexadecimal context
        */
