@@ -83,6 +83,7 @@ char  fForce         = 0;  /* force overwrite of existing output file */
 char  fBuffers       = 0;  /* just display search & replace buffers */
 char  fFilter        = 0;  /* make GSAR act like a filter */
 char  fSuppressErrors = 0; /* suppress file-access diagnostics */
+char  fListWithoutMatches = 0; /* list files without matches */
 
 /* Usage text
  */
@@ -102,6 +103,7 @@ char *Usage[] =
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
+  "-L         List input files without matches",
   "Search exit status: 0=match, 1=no match, 2=error",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
@@ -360,7 +362,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:r::iBfoc::x::blhd::u::Fqs")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:r::iBfoc::x::blhd::u::FqsL")) != EOF)
       {
          switch (c)
          {
@@ -457,6 +459,9 @@ int GetArgs(int argc, char *argv[])
                break;
             case 's':
                fSuppressErrors = 1;
+               break;
+            case 'L':
+               fListWithoutMatches = 1;
                break;
             case 'B':
                fBuffers = 1;
@@ -579,9 +584,16 @@ long StreamSearchReplace(void)
 
    if (!fSearchReplace)
    {
+      if (fListWithoutMatches)
+         Ctrl.fQuiet = 1;
       nMatches = BMG_Search(&Ctrl);
+      if (fListWithoutMatches)
+         Ctrl.fQuiet = 0;
 
-      if (nMatches > 0 && !Ctrl.fQuiet)
+      if (fListWithoutMatches && nMatches == 0)
+         fprintf(stdout, "%s\n", Ctrl.pInputFile);
+
+      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
@@ -638,6 +650,7 @@ int FileSearch(void)
    long  nMatches;
    int   fFound = 0;
    int   fError = 0;
+   int   fWithoutMatch = 0;
 
    while (*pFileList != NULL)
    {
@@ -679,9 +692,19 @@ int FileSearch(void)
          fprintf(stderr, "warning, unable to set up buffering for input file\n");
 #endif
 
+      if (fListWithoutMatches)
+         Ctrl.fQuiet = 1;
       nMatches = BMG_Search(&Ctrl);
+      if (fListWithoutMatches)
+         Ctrl.fQuiet = 0;
       if (Ctrl.fpIn != stdin)
          fclose(Ctrl.fpIn);
+
+      if (fListWithoutMatches && nMatches == 0)
+      {
+         fprintf(stdout, "%s\n", Ctrl.pInputFile);
+         fWithoutMatch = 1;
+      }
 
       if (nMatches > 0)
       {
@@ -690,12 +713,14 @@ int FileSearch(void)
             return 0;
       }
 
-      if (nMatches > 0 && !Ctrl.fQuiet)
+      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
    if (fError)
       return 2;
+   if (fListWithoutMatches)
+      return fWithoutMatch ? 0 : 1;
    return fFound ? 0 : 1;
 }
 
@@ -963,6 +988,9 @@ int main(int argc, char *argv[])
     */
    BMG_Setup(SearchBuf, (int) nItemsSearch, fFolded);
 
+   if (fListWithoutMatches && (fSearchReplace || Ctrl.fQuiet))
+      Abort("command error, -L cannot be combined with replacement or -q");
+
    if (Ctrl.fQuiet && fSearchReplace)
       Abort("command error, the 'q' option cannot be used with replacement");
 
@@ -973,7 +1001,7 @@ int main(int argc, char *argv[])
 
       nMatches = StreamSearchReplace();
       if (!fSearchReplace)
-         return nMatches > 0 ? 0 : 1;
+         return fListWithoutMatches ? (nMatches == 0 ? 0 : 1) : (nMatches > 0 ? 0 : 1);
       return EXIT_SUCCESS;
    }
 
