@@ -993,7 +993,7 @@ int main(int argc, char *argv[])
    }
 
    if (fFilter && fSearchReplace && isatty(fileno(stdout)))
-      Abort("standard output must be redirected for binary replacement");
+      Abort("standard output must be redirected");
 
    if (i != 2 && fForce && !fOverWrite)
       Abort("command error, two file names are required to use the 'f' option");
