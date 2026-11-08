@@ -183,6 +183,8 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
  * to the start of the buffer. The next time we fill the buffer we fill it
  * with BUFSIZ - (BMG_Patlen - 1) bytes.
  */
+extern long nMaxMatches; /* search limit set by command-line -m */
+
 long BMG_Search(OUTPUT_CTRL *pCtrl)
 {
    register unsigned char *k;
@@ -196,6 +198,9 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
    int  Cnt = BUFSIZ;
 
    long nMatches = 0;                  /* number of matches found */
+
+   if (nMaxMatches == 0)
+      return 0;
    long nBytes;                        /* number of bytes read */
    unsigned long FileOfs = 0;          /* current file offset */
 
@@ -239,6 +244,12 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
             nMatches++;
             if (pCtrl->fQuiet)
                return nMatches;
+            if (nMaxMatches > 0 && nMatches >= nMaxMatches)
+            {
+               if (pCtrl->fVerbose)
+                  Verbose(pCtrl, FileOfs, BufOfs, BMG_Buffer, strend);
+               return nMatches;
+            }
             if (pCtrl->fVerbose)
                Verbose(pCtrl, FileOfs, BufOfs, BMG_Buffer, strend);
 
