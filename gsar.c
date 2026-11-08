@@ -94,6 +94,7 @@ char *Usage[] =
   "Options are:",
   "-e<string> Explicit search string (instead of positional pattern)",
   "           Pattern is the first non-option argument unless -e is used",
+  "           Search reads stdin when no input file is given and stdin is redirected",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
@@ -896,6 +897,17 @@ int main(int argc, char *argv[])
       }
 
       return EXIT_SUCCESS;
+   }
+
+   /* Search redirected stdin automatically when no files were given.
+    * Preserve the explicit -F requirement for replacement filters.
+    */
+   if (i == 0 && !fFilter && !fSearchReplace)
+   {
+      if (!isatty(fileno(stdin)))
+         fFilter = 1;
+      else
+         Abort("command error, no input file name specified");
    }
 
    if (i == 0 && !fFilter)
