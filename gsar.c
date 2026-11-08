@@ -83,7 +83,7 @@ char  fForce         = 0;  /* force overwrite of existing output file */
 char  fBuffers       = 0;  /* just display search & replace buffers */
 char  fFilter        = 0;  /* make GSAR act like a filter */
 
-/* Usage text and GNU licence information
+/* Usage text
  */
 char *Usage[] =
 {
@@ -105,48 +105,12 @@ char *Usage[] =
   "-du        convert a DOS ASCII file to UNIX (strips carriage return)",
   "-ud        convert a UNIX ASCII file to DOS (adds carriage return)",
   "-F         'Filter' mode, input from stdin and eventual output to stdout",
-  "-G         display the GNU General Public Licence",
   "",
   "Ctrl characters may be entered by using a ':' in the string followed by the",
   "ASCII value of the character. The value is entered using ':' followed by three",
   "decimal digits or ':x' followed by two hex numbers. To enter ':' use '::'",
   NULL
-};
-
-char *Licence[] =
-{
-  "This program is free software; you can redistribute it and/or modify",
-  "it under the terms of the GNU General Public License as published by",
-  "the Free Software Foundation; either version 2 of the License, or",
-  "(at your option) any later version.",
-  "",
-  "This program is distributed in the hope that it will be useful,",
-  "but WITHOUT ANY WARRANTY; without even the implied warranty of",
-  "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the",
-  "GNU General Public License for more details.",
-  "",
-  "You should have received a copy of the GNU General Public License",
-  "along with this program; if not, write to the Free Software",
-  "Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.",
-  NULL
-};
-
-
-/* Display the GNU General Public License
- */
-void ShowLicence(void)
-{
-   int i = 0;
-
-   while (Licence[i] != NULL)
-   {
-      fputs(Licence[i++], Ctrl.fpMsg);
-      fputc('\n', Ctrl.fpMsg);
-   }
-}
-
-
-/* Input  : Message to be displayed with the format of standard printf
+}/* Input  : Message to be displayed with the format of standard printf
  * Returns: Nothing, but instead it exits to operating system
  *
  * Terminate program, return to OS with a suitable return value
@@ -384,7 +348,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|s::r::iBfoc::x::blhd::u::FG")) != EOF)
+      while ((c = GetOpt(argc, argv, "|s::r::iBfoc::x::blhd::u::F")) != EOF)
       {
          switch (c)
          {
@@ -456,10 +420,6 @@ int GetArgs(int argc, char *argv[])
                break;
             case 'i':
                fFolded = 1;
-               break;
-            case 'G':
-               ShowLicence();
-               exit(EXIT_SUCCESS);
                break;
             case 'l':
                Ctrl.fTextual = 0;      /* return to terse display */
