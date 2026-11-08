@@ -110,7 +110,10 @@ char *Usage[] =
   "ASCII value of the character. The value is entered using ':' followed by three",
   "decimal digits or ':x' followed by two hex numbers. To enter ':' use '::'",
   NULL
-}/* Input  : Message to be displayed with the format of standard printf
+};
+
+
+/* Input  : Message to be displayed with the format of standard printf
  * Returns: Nothing, but instead it exits to operating system
  *
  * Terminate program, return to OS with a suitable return value
