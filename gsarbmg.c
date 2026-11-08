@@ -86,9 +86,15 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
     */
    if (pCtrl->fTextual || pCtrl->fHex)
    {
-      pSC = pStart + BufOfs - pCtrl->Context / 2 + BMG_Patlen / 2;
-      if (pSC < pStart)                /* outside the buffer ? */
-         pSC = pStart;
+      /* Calculate offsets before forming pointers: pointer arithmetic
+       * before the start of the buffer is undefined in C. */
+      {
+         long first = (long) BufOfs - (long) pCtrl->Context / 2
+                    + (long) BMG_Patlen / 2;
+         if (first < 0)
+            first = 0;
+         pSC = pStart + first;
+      }
 
       pEC = pSC + pCtrl->Context;
       if (pEC > pEnd)                  /* outside the buffer ? */
@@ -173,6 +179,104 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
 }
 
 
+/* Context search retains bytes before and after each match, including
+ * across fread boundaries and when reading redirected stdin. */
+extern long nMaxMatches;
+
+#define CONTEXT_BUFFER_SIZE (BUFSIZ * 3 + PAT_BUFSIZ)
+
+long BMG_SearchContext(OUTPUT_CTRL *pCtrl)
+{
+   unsigned char buffer[CONTEXT_BUFFER_SIZE];
+   unsigned long base = 0;
+   unsigned long next = 0;
+   long matches = 0;
+   size_t used = 0;
+   size_t got;
+   size_t keep;
+   size_t limit;
+   size_t pos;
+   size_t drop;
+   unsigned long start;
+   unsigned long end;
+   unsigned long center;
+   unsigned long desired;
+   int eof = 0;
+   int j;
+   int found;
+
+   if (nMaxMatches == 0)
+      return 0;
+
+   for (;;)
+   {
+      if (!eof && used < CONTEXT_BUFFER_SIZE)
+      {
+         got = fread(buffer + used, 1, CONTEXT_BUFFER_SIZE - used, pCtrl->fpIn);
+         used += got;
+         if (got == 0)
+            eof = 1;
+      }
+
+      /* Keep enough future bytes for the context of a pending match. */
+      if (eof)
+         limit = used;
+      else if (used > (size_t) (pCtrl->Context + BMG_Patlen))
+         limit = used - pCtrl->Context - BMG_Patlen;
+      else
+         limit = 0;
+
+      pos = (size_t) (next - base);
+      while (pos + BMG_Patlen <= used && (eof || pos < limit))
+      {
+         found = 1;
+         for (j = 0; j < BMG_Patlen; j++)
+            if (BMG_Cmap[buffer[pos + j]] != BMG_Pattern[j])
+            {
+               found = 0;
+               break;
+            }
+
+         if (found)
+         {
+            matches++;
+            if (pCtrl->fQuiet)
+               return matches;
+
+            center = (unsigned long) pos + (unsigned long) BMG_Patlen / 2;
+            desired = (unsigned long) pCtrl->Context;
+            start = center > desired / 2 ? center - desired / 2 : 0;
+            end = start + desired;
+            if (end > (unsigned long) used)
+            {
+               end = (unsigned long) used;
+               start = end >= desired ? end - desired : 0;
+            }
+            /* The window is already centered and clamped. */
+            Verbose(pCtrl, base + start, (int) (pos - start),
+                    buffer + start, buffer + end);
+            if (nMaxMatches > 0 && matches >= nMaxMatches)
+               return matches;
+         }
+         pos++;
+         next++;
+      }
+
+      if (eof)
+         break;
+
+      keep = (size_t) pCtrl->Context + (size_t) BMG_Patlen;
+      if (next > base + keep)
+      {
+         drop = (size_t) (next - base - keep);
+         memmove(buffer, buffer + drop, used - drop);
+         used -= drop;
+         base += drop;
+      }
+   }
+   return matches;
+}
+
 /* Input    : pCtrl - pointer to structure containg output and ctrl info
  * Returns  : number of matches found in file
  *
@@ -183,7 +287,7 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
  * to the start of the buffer. The next time we fill the buffer we fill it
  * with BUFSIZ - (BMG_Patlen - 1) bytes.
  */
-extern long nMaxMatches; /* search limit set by command-line -m */
+/* nMaxMatches is declared above for both search paths. */
 
 long BMG_Search(OUTPUT_CTRL *pCtrl)
 {
@@ -200,6 +304,9 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
    long nMatches = 0;                  /* number of matches found */
    long nBytes;                        /* number of bytes read */
    unsigned long FileOfs = 0;          /* current file offset */
+
+   if (pCtrl->fTextual || pCtrl->fHex)
+      return BMG_SearchContext(pCtrl);
 
    if (nMaxMatches == 0)
       return 0;
