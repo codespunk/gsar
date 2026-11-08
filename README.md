@@ -1,2 +1,2 @@
 # gsar
-gsar - General Search And Replace utility
+General Search And Replace utility
