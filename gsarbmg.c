@@ -237,6 +237,8 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
             BufOfs = k - BMG_Buffer + 1 - BMG_Patlen;
 
             nMatches++;
+            if (pCtrl->fQuiet)
+               return nMatches;
             if (pCtrl->fVerbose)
                Verbose(pCtrl, FileOfs, BufOfs, BMG_Buffer, strend);
 
