@@ -81,7 +81,7 @@ char  fFolded        = 0;  /* fold pattern ie. ignore case */
 char  fOverWrite     = 0;  /* overwrite input file */
 char  fForce         = 0;  /* force overwrite of existing output file */
 char  fBuffers       = 0;  /* just display search & replace buffers */
-char  fFilter        = 0;  /* make GSAR act like a filter */
+char  fFilter        = 0;  /* automatically selected stdin/stdout filter */
 char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 char  fListWithoutMatches = 0; /* list files without matches */
 char  fListWithMatches = 0; /* list files with matches */
@@ -119,7 +119,6 @@ char *Usage[] =
   "-h         suppress display of filespec when displaying context or offsets",
   "-du        convert a DOS ASCII file to UNIX (strips carriage return)",
   "-ud        convert a UNIX ASCII file to DOS (adds carriage return)",
-  "-F         'Filter' mode, input from stdin and eventual output to stdout",
   "",
   "Ctrl characters may be entered by using a ':' in the string followed by the",
   "ASCII value of the character. The value is entered using ':' followed by three",
@@ -366,7 +365,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::FqsL")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsL")) != EOF)
       {
          switch (c)
          {
@@ -464,9 +463,6 @@ int GetArgs(int argc, char *argv[])
                break;
             case 'f':
                fForce = 1;
-               break;
-            case 'F':
-               fFilter = 1;
                break;
             case 'q':
                Ctrl.fQuiet = 1;
@@ -590,8 +586,6 @@ long StreamSearchReplace(void)
     * ignores the CTRL-Z. If you pipe a binary stream to MSDOS under some
     * compilers you might get a write error (BCC, Zortech)
     */
-   if (isatty(fileno(stdin)))
-      Abort("error, input from tty is not supported under MSDOS");
    setmode(fileno(stdin), O_BINARY);
    setmode(fileno(stdout), O_BINARY);
 #endif
@@ -983,23 +977,23 @@ int main(int argc, char *argv[])
       return EXIT_SUCCESS;
    }
 
-   /* Search redirected stdin automatically when no files were given.
-    * Preserve the explicit -F requirement for replacement filters.
+   /* Use stdin automatically when no named input files were provided.
+    * The explicit '-' operand also selects stdin in search mode.
+    * Replacement filtering must never write binary data to a console.
     */
-   if (i == 1 && !fFilter && !fSearchReplace &&
+   if (i == 1 && !fSearchReplace &&
        strcmp(pFileList[0], "-") == 0)
       fFilter = 1;
 
-   if (i == 0 && !fFilter && !fSearchReplace)
+   if (i == 0)
    {
-      if (!isatty(fileno(stdin)))
-         fFilter = 1;
-      else
-         Abort("command error, no input file name specified");
+      if (isatty(fileno(stdin)))
+         Abort("standard input must be redirected");
+      fFilter = 1;
    }
 
-   if (i == 0 && !fFilter)
-      Abort("command error, no input file name specified");
+   if (fFilter && fSearchReplace && isatty(fileno(stdout)))
+      Abort("standard output must be redirected for binary replacement");
 
    if (i != 2 && fForce && !fOverWrite)
       Abort("command error, two file names are required to use the 'f' option");
