@@ -86,6 +86,8 @@ char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 char  fListWithoutMatches = 0; /* list files without matches */
 char  fListWithMatches = 0; /* list files with matches */
 char  fCountOnly = 0; /* print binary occurrence counts */
+char  fSearchOption = 0; /* -e or -P already specified */
+char  fReplaceOption = 0; /* -r or -R already specified */
 long  nMaxMatches = -1L; /* -1 means unlimited; applies to searches only */
 
 /* Usage text
@@ -97,6 +99,7 @@ char *Usage[] =
   "Usage: gsar [options] pattern [infile(s)] [outfile]",
   "Options are:",
   "-e<string> Explicit search string (instead of positional pattern)",
+  "-P FILE    Read literal search bytes from a binary file",
   "           Pattern is the first non-option argument unless -e is used",
   "           Use -- to end options (for patterns or filenames starting with -)",
   "           A single - input filename reads stdin",
@@ -104,6 +107,7 @@ char *Usage[] =
   "           Search reads stdin when no input file is given and stdin is redirected",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
+  "-R FILE    Read literal replacement bytes from a binary file",
   "-i         Ignore case difference when comparing strings",
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
   "-L         List input files without matches",
@@ -349,6 +353,45 @@ unsigned short GetPattern(char *pArgStr, char *pBuffer)
 }
 
 
+/* Read a raw pattern without text conversion, including embedded NUL bytes.
+ * Limit patterns to the existing fixed buffer size (PAT_BUFSIZ).
+ * Empty replacement files represent deletion; empty search files are invalid.
+ */
+unsigned short ReadPatternFile(char *pName, char *pBuffer, int fReplacement)
+{
+   FILE *fp;
+   size_t n;
+   int extra;
+
+   fp = fopen(pName, "rb");
+   if (fp == NULL)
+      Abort("unable to open pattern file '%s'", pName);
+
+   n = fread(pBuffer, 1, PAT_BUFSIZ, fp);
+   if (ferror(fp))
+   {
+      fclose(fp);
+      Abort("unable to read pattern file '%s'", pName);
+   }
+   extra = fgetc(fp);
+   if (extra != EOF)
+   {
+      fclose(fp);
+      Abort("pattern file '%s' exceeds %d bytes", pName, PAT_BUFSIZ);
+   }
+   if (ferror(fp))
+   {
+      fclose(fp);
+      Abort("unable to read pattern file '%s'", pName);
+   }
+   if (fclose(fp) != 0)
+      Abort("unable to close pattern file '%s'", pName);
+   if (n == 0 && !fReplacement)
+      Abort("search pattern file '%s' is empty", pName);
+   return (unsigned short) n;
+}
+
+
 /* Input  : argc - number of arguments on the command line
  *          argv - pointer to the argument vevtor
  * Returns: number of actual filenames found
@@ -367,7 +410,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoC::X::blhtd::u::qsLc")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:P:R:m:r::iBfoC::X::blhtd::u::qsLc")) != EOF)
       {
          switch (c)
          {
@@ -419,12 +462,31 @@ int GetArgs(int argc, char *argv[])
                nMaxMatches = longVal;
                break;
             case 'e':
+               if (fSearchOption)
+                  Abort("command error, duplicate or conflicting -e/-P search options");
+               fSearchOption = 1;
                if (pOptArg == NULL)
                   Abort("command error, the '%c' option requires an argument", (unsigned char) CurOpt);
                
                nItemsSearch = GetPattern(pOptArg, SearchBuf);
                break;
+            case 'P':
+               if (fSearchOption)
+                  Abort("command error, duplicate or conflicting -e/-P search options");
+               fSearchOption = 1;
+               nItemsSearch = ReadPatternFile(pOptArg, SearchBuf, 0);
+               break;
+            case 'R':
+               if (fReplaceOption)
+                  Abort("command error, duplicate or conflicting -r/-R replacement options");
+               fReplaceOption = 1;
+               nItemsReplace = ReadPatternFile(pOptArg, ReplaceBuf, 1);
+               fSearchReplace = 1;
+               break;
             case 'r':
+               if (fReplaceOption)
+                  Abort("command error, duplicate or conflicting -r/-R replacement options");
+               fReplaceOption = 1;
                if (pOptArg == NULL)
                   nItemsReplace = 0;    /* we are to remove occurrence of -s */
                else
@@ -555,7 +617,7 @@ int GetArgs(int argc, char *argv[])
    /* Without -e, the first non-option argument is the search pattern.
     * Keep -e and the built-in CR/LF conversion patterns unchanged.
     */
-   if (nItemsSearch == 0 && j > 0)
+   if (nItemsSearch == 0 && !fSearchOption && j > 0)
    {
       nItemsSearch = GetPattern(pFileList[0], SearchBuf);
       for (i = 1; i < j; i++)
