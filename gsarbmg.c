@@ -104,7 +104,7 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
          /* if we have to truncate to pEnd readjust the start
           * of the context if possible.
           */
-         if (pEC - pCtrl->Context > pStart)
+         if ((size_t) (pEC - pStart) > (size_t) pCtrl->Context)
             pSC = pEC - pCtrl->Context;
       }
 
@@ -185,11 +185,12 @@ extern long nMaxMatches;
 
 #define CONTEXT_BUFFER_SIZE (BUFSIZ * 3 + PAT_BUFSIZ)
 
-long BMG_SearchContext(OUTPUT_CTRL *pCtrl)
+long BMG_SearchContext(OUTPUT_CTRL *pCtrl, char *pReplaceBuf, unsigned short nReplace, int replacing)
 {
    unsigned char buffer[CONTEXT_BUFFER_SIZE];
    unsigned long base = 0;
    unsigned long next = 0;
+   unsigned long written = 0;
    long matches = 0;
    size_t used = 0;
    size_t got;
@@ -240,7 +241,7 @@ long BMG_SearchContext(OUTPUT_CTRL *pCtrl)
          if (found)
          {
             matches++;
-            if (pCtrl->fQuiet)
+            if (pCtrl->fQuiet && !replacing)
                return matches;
 
             center = (unsigned long) pos + (unsigned long) BMG_Patlen / 2;
@@ -255,6 +256,19 @@ long BMG_SearchContext(OUTPUT_CTRL *pCtrl)
             /* The window is already centered and clamped. */
             Verbose(pCtrl, base + start, (int) (pos - start),
                     buffer + start, buffer + end);
+            if (replacing)
+            {
+               if (fwrite(buffer + (size_t) (written - base), 1,
+                          (size_t) (next - written), pCtrl->fpOut)
+                   != (size_t) (next - written))
+                  return -1;
+               if (fwrite(pReplaceBuf, 1, nReplace, pCtrl->fpOut) != nReplace)
+                  return -1;
+               next += BMG_Patlen;
+               written = next;
+               pos = (size_t) (next - base);
+               continue;
+            }
             if (nMaxMatches > 0 && matches >= nMaxMatches)
                return matches;
          }
@@ -262,8 +276,23 @@ long BMG_SearchContext(OUTPUT_CTRL *pCtrl)
          next++;
       }
 
+      if (replacing && next > written)
+      {
+         if (fwrite(buffer + (size_t) (written - base), 1,
+                    (size_t) (next - written), pCtrl->fpOut)
+             != (size_t) (next - written))
+            return -1;
+         written = next;
+      }
       if (eof)
+      {
+         if (replacing && base + used > written &&
+             fwrite(buffer + (size_t) (written - base), 1,
+                    (size_t) (base + used - written), pCtrl->fpOut)
+                 != (size_t) (base + used - written))
+            return -1;
          break;
+      }
 
       keep = (size_t) pCtrl->Context + (size_t) BMG_Patlen;
       if (next > base + keep)
@@ -306,7 +335,7 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
    unsigned long FileOfs = 0;          /* current file offset */
 
    if (pCtrl->fTextual || pCtrl->fHex)
-      return BMG_SearchContext(pCtrl);
+      return BMG_SearchContext(pCtrl, NULL, 0, 0);
 
    if (nMaxMatches == 0)
       return 0;
@@ -410,6 +439,8 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
  */
 long BMG_SearchReplace(OUTPUT_CTRL *pCtrl, char *pReplaceBuf, unsigned short nReplace)
 {
+   if (pCtrl->fTextual || pCtrl->fHex)
+      return BMG_SearchContext(pCtrl, pReplaceBuf, nReplace, 1);
    register unsigned char *k;
    register unsigned char *s;
    register unsigned char *strend;
