@@ -360,37 +360,44 @@ unsigned short GetPattern(char *pArgStr, char *pBuffer)
 unsigned short ReadPatternFile(char *pName, char *pBuffer, int fReplacement)
 {
    FILE *fp;
+   long length;
    size_t n;
-   int extra;
 
    fp = fopen(pName, "rb");
    if (fp == NULL)
       Abort("unable to open pattern file '%s'", pName);
 
-   n = fread(pBuffer, 1, PAT_BUFSIZ, fp);
-   if (ferror(fp))
+   if (fseek(fp, 0L, SEEK_END) != 0 || (length = ftell(fp)) < 0L)
    {
       fclose(fp);
-      Abort("unable to read pattern file '%s'", pName);
+      Abort("unable to determine size of pattern file '%s'", pName);
    }
-   extra = fgetc(fp);
-   if (extra != EOF)
+   if (length > PAT_BUFSIZ)
    {
       fclose(fp);
       Abort("pattern file '%s' exceeds %d bytes", pName, PAT_BUFSIZ);
    }
-   if (ferror(fp))
+   if (length == 0L && !fReplacement)
+   {
+      fclose(fp);
+      Abort("search pattern file '%s' is empty", pName);
+   }
+   if (fseek(fp, 0L, SEEK_SET) != 0)
+   {
+      fclose(fp);
+      Abort("unable to rewind pattern file '%s'", pName);
+   }
+
+   n = fread(pBuffer, 1, (size_t) length, fp);
+   if (n != (size_t) length || ferror(fp))
    {
       fclose(fp);
       Abort("unable to read pattern file '%s'", pName);
    }
    if (fclose(fp) != 0)
       Abort("unable to close pattern file '%s'", pName);
-   if (n == 0 && !fReplacement)
-      Abort("search pattern file '%s' is empty", pName);
    return (unsigned short) n;
 }
-
 
 /* Input  : argc - number of arguments on the command line
  *          argv - pointer to the argument vevtor
