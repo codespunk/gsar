@@ -507,8 +507,8 @@ int GetArgs(int argc, char *argv[])
 
 
 /* Perform search or replace using stdin and stdout ie as a 'filter'
- * When gsar operates as a filter all output ie context, byte filenames
- * etc are all sent to stderr.
+ * Search results go to stdout. Replacement messages go to stderr
+ * so that binary replacement output on stdout is not corrupted.
  */
 long StreamSearchReplace(void)
 {
@@ -570,13 +570,13 @@ char fCheckFile(char *pFileName)
 
    if (stat(pFileName, &buf) != 0)
    {
-      fprintf(Ctrl.fpMsg, "gsar: unable to open input file '%s'\n", pFileName);
+      fprintf(stderr, "gsar: unable to open input file '%s'\n", pFileName);
       return 0;
    }
 
    if (!(S_ISREG(buf.st_mode)))
    {
-      fprintf(Ctrl.fpMsg, "gsar: warning, not a regular file '%s'\n", pFileName);
+      fprintf(stderr, "gsar: warning, not a regular file '%s'\n", pFileName);
       return 0;
    }
 
@@ -605,7 +605,7 @@ int FileSearch(void)
 
       if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
       {
-         fprintf(Ctrl.fpMsg, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+         fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
          fError = 1;
          continue;
       }
@@ -616,7 +616,7 @@ int FileSearch(void)
       /* Don't use setvbuf if we're compiling under Zortech small model
        */
       if (setvbuf(Ctrl.fpIn, NULL, _IOFBF, SETVBUF_SIZ) != 0)
-         fprintf(Ctrl.fpMsg, "warning, unable to set up buffering for input file\n");
+         fprintf(stderr, "warning, unable to set up buffering for input file\n");
 #endif
 
       nMatches = BMG_Search(&Ctrl);
@@ -682,9 +682,9 @@ void OneSearchReplace(void)
    /* Don't use setvbuf if we're compiling under Zortech small model
     */
    if (setvbuf(Ctrl.fpIn, NULL, _IOFBF, SETVBUF_SIZ) != 0)
-      fprintf(Ctrl.fpMsg, "warning, unable to set up buffering for input file\n");
+      fprintf(stderr, "warning, unable to set up buffering for input file\n");
    if (setvbuf(Ctrl.fpOut, NULL, _IOFBF, SETVBUF_SIZ) != 0)
-      fprintf(Ctrl.fpMsg, "warning, unable to set up buffering for output file\n");
+      fprintf(stderr, "warning, unable to set up buffering for output file\n");
 #endif
 
    nMatches = BMG_SearchReplace(&Ctrl, ReplaceBuf, nItemsReplace);
@@ -696,7 +696,7 @@ void OneSearchReplace(void)
 
    if (nMatches == -1)   /* error in writing file */
    {
-      fprintf(Ctrl.fpMsg, "gsar: error in writing file '%s' - cleaning up\n", pOutFile);
+      fprintf(stderr, "gsar: error in writing file '%s' - cleaning up\n", pOutFile);
       if (remove(pOutFile) != 0)
          Abort("error, unable to remove output file '%s'", pOutFile);
       exit(2);  /* grep-compatible error status */
@@ -747,7 +747,7 @@ void SearchReplace(void)
 
       if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
       {
-         fprintf(Ctrl.fpMsg, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+         fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
          continue;
       }
 
@@ -774,9 +774,9 @@ void SearchReplace(void)
       /* Don't use setvbuf if we're compiling under Zortech small model
          */
       if (setvbuf(Ctrl.fpIn, NULL, _IOFBF, SETVBUF_SIZ) != 0)
-         fprintf(Ctrl.fpMsg, "warning, unable to set up buffering for input file\n");
+         fprintf(stderr, "warning, unable to set up buffering for input file\n");
       if (setvbuf(Ctrl.fpOut, NULL, _IOFBF, SETVBUF_SIZ) != 0)
-         fprintf(Ctrl.fpMsg, "warning, unable to set up buffering for output file\n");
+         fprintf(stderr, "warning, unable to set up buffering for output file\n");
 #endif
 
       nMatches = BMG_SearchReplace(&Ctrl, ReplaceBuf, nItemsReplace);
@@ -788,7 +788,7 @@ void SearchReplace(void)
 
       if (nMatches == -1)   /* error in writing file */
       {
-         fprintf(Ctrl.fpMsg, "gsar: error in writing file '%s' - cleaning up\n", pOutFile);
+         fprintf(stderr, "gsar: error in writing file '%s' - cleaning up\n", pOutFile);
          if (remove(pOutFile) != 0)
             Abort("error, unable to remove output file '%s'", pOutFile);
          exit(EXIT_FAILURE);
@@ -805,7 +805,7 @@ void SearchReplace(void)
             */
          if (remove(Ctrl.pInputFile) != 0)
          {
-            fprintf(Ctrl.fpMsg, "gsar: error, unable to remove input file '%s' before rename (read-only ?)", Ctrl.pInputFile);
+            fprintf(stderr, "gsar: error, unable to remove input file '%s' before rename (read-only ?)", Ctrl.pInputFile);
             if (remove(pOutFile) != 0)
                Abort("error, unable to remove output file '%s'", pOutFile);
             exit(EXIT_FAILURE);
