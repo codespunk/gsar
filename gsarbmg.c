@@ -439,8 +439,6 @@ long BMG_Search(OUTPUT_CTRL *pCtrl)
  */
 long BMG_SearchReplace(OUTPUT_CTRL *pCtrl, char *pReplaceBuf, unsigned short nReplace)
 {
-   if (pCtrl->fTextual || pCtrl->fHex)
-      return BMG_SearchContext(pCtrl, pReplaceBuf, nReplace, 1);
    register unsigned char *k;
    register unsigned char *s;
    register unsigned char *strend;
@@ -456,6 +454,9 @@ long BMG_SearchReplace(OUTPUT_CTRL *pCtrl, char *pReplaceBuf, unsigned short nRe
    long nMatches = 0;                       /* number of matches found */
    long nBytes;                                /* number of bytes read */
    unsigned long FileOfs = 0;                   /* current file offset */
+
+   if (pCtrl->fTextual || pCtrl->fHex)
+      return BMG_SearchContext(pCtrl, pReplaceBuf, nReplace, 1);
 
    for (;;)
    {
