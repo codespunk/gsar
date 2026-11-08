@@ -86,25 +86,33 @@ void Verbose(OUTPUT_CTRL *pCtrl, unsigned long FileOfs, int BufOfs,
     */
    if (pCtrl->fTextual || pCtrl->fHex)
    {
-      /* Calculate offsets before forming pointers: pointer arithmetic
-       * before the start of the buffer is undefined in C. */
+      /* BMG_SearchContext already supplies a bounded context window.
+       * Do not recenter it: doing so loses preceding bytes near EOF.
+       * The legacy search paths still supply larger read buffers, for
+       * which we calculate the window around the match below. */
+      if ((size_t) (pEnd - pStart) <= (size_t) pCtrl->Context)
+      {
+         pSC = pStart;
+         pEC = pEnd;
+      }
+      else
       {
          long first = (long) BufOfs - (long) pCtrl->Context / 2
                     + (long) BMG_Patlen / 2;
          if (first < 0)
             first = 0;
+         if ((size_t) first > (size_t) (pEnd - pStart))
+            first = (long) (pEnd - pStart);
          pSC = pStart + first;
-      }
 
-      if ((size_t) (pEnd - pSC) < (size_t) pCtrl->Context)
-      {
-         pEC = pEnd;
-         /* Shift the window left when it reaches the end of input. */
-         if ((size_t) (pEC - pStart) > (size_t) pCtrl->Context)
+         if ((size_t) (pEnd - pSC) < (size_t) pCtrl->Context)
+         {
+            pEC = pEnd;
             pSC = pEC - pCtrl->Context;
+         }
+         else
+            pEC = pSC + pCtrl->Context;
       }
-      else
-         pEC = pSC + pCtrl->Context;
 
       /* display a hexadecimal context
        */
