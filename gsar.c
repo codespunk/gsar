@@ -509,7 +509,7 @@ int GetArgs(int argc, char *argv[])
  * When gsar operates as a filter all output ie context, byte filenames
  * etc are all sent to stderr.
  */
-void StreamSearchReplace(void)
+long StreamSearchReplace(void)
 {
    long  nMatches;
 
@@ -554,6 +554,7 @@ void StreamSearchReplace(void)
                     Ctrl.pInputFile, nMatches, (nMatches > 1) ? "s" : "");
          }
    }
+   return nMatches;
 }
 
 /* Input  : filename
@@ -876,13 +877,17 @@ int main(int argc, char *argv[])
     */
    BMG_Setup(SearchBuf, (int) nItemsSearch, fFolded);
 
+   if (Ctrl.fQuiet && fSearchReplace)
+      Abort("command error, the 'q' option cannot be used with replacement");
+
    if (fFilter)
    {
       if (fOverWrite || fForce)
          Abort("command error, the 'o' or 'f' option is meaningless in 'filter' mode");
 
-      StreamSearchReplace();
-      return EXIT_SUCCESS;
+      long nMatches;
+      nMatches = StreamSearchReplace();
+      return Ctrl.fQuiet ? (nMatches > 0 ? 0 : 1) : EXIT_SUCCESS;
    }
 
    /* just perform a file search
