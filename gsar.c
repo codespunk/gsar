@@ -85,6 +85,7 @@ char  fFilter        = 0;  /* make GSAR act like a filter */
 char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 char  fListWithoutMatches = 0; /* list files without matches */
 char  fListWithMatches = 0; /* list files with matches */
+long  nMaxMatches = -1L; /* -1 means unlimited; applies to searches only */
 
 /* Usage text
  */
@@ -106,6 +107,7 @@ char *Usage[] =
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
   "-L         List input files without matches",
   "-l         List input files containing matches",
+  "-m N       Stop after N matches per input (0 means no matches)",
   "Search exit status: 0=match, 1=no match, 2=error",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
@@ -364,7 +366,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:r::iBfoc::x::blhtd::u::FqsL")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::FqsL")) != EOF)
       {
          switch (c)
          {
@@ -401,6 +403,16 @@ int GetArgs(int argc, char *argv[])
                   Abort("error, unable to allocate file argument list");
                pFileList[j++] = pOptArg;
                pFileList[j] = NULL;
+               break;
+            case 'm':
+               if (pOptArg == NULL || *pOptArg == '\0')
+                  Abort("command error, -m requires a nonnegative integer");
+               if (*pOptArg == '-')
+                  Abort("command error, invalid maximum match count: %s", pOptArg);
+               longVal = strtol(pOptArg, &pEnd, 10);
+               if (*pEnd != '\0' || longVal < 0)
+                  Abort("command error, invalid maximum match count: %s", pOptArg);
+               nMaxMatches = longVal;
                break;
             case 'e':
                if (pOptArg == NULL)
@@ -995,6 +1007,9 @@ int main(int argc, char *argv[])
    /* set up the search pattern once and for all
     */
    BMG_Setup(SearchBuf, (int) nItemsSearch, fFolded);
+
+   if (nMaxMatches >= 0 && fSearchReplace)
+      Abort("command error, -m cannot be used with replacement");
 
    if ((fListWithoutMatches || fListWithMatches) &&
        (fSearchReplace || Ctrl.fQuiet || (fListWithoutMatches && fListWithMatches)))
