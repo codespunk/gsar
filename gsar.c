@@ -94,6 +94,7 @@ char *Usage[] =
   "Options are:",
   "-e<string> Explicit search string (instead of positional pattern)",
   "           Pattern is the first non-option argument unless -e is used",
+  "           Use -- to end options (for patterns or filenames starting with -)",
   "           Search reads stdin when no input file is given and stdin is redirected",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
@@ -502,6 +503,23 @@ int GetArgs(int argc, char *argv[])
          fputc('\n', Ctrl.fpMsg);
       }
       exit(EXIT_SUCCESS);
+   }
+
+   /* GetOpt stops at '--'. Treat every remaining argument literally,
+    * including names and patterns beginning with '-'.
+    */
+   while (OptInx < argc)
+   {
+#if defined(__UNIX__)
+      if (pFileList == NULL)
+         pFileList = (char **) malloc((j + 2) * sizeof(char *));
+      else
+#endif
+         pFileList = (char **) realloc(pFileList, (j + 2) * sizeof(char *));
+      if (pFileList == NULL)
+         Abort("error, unable to allocate file argument list");
+      pFileList[j++] = argv[OptInx++];
+      pFileList[j] = NULL;
    }
 
    /* Without -e, the first non-option argument is the search pattern.
