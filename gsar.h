@@ -43,6 +43,7 @@
 
 typedef struct
 {
+   signed char fQuiet;   /* stop after first match, suppress normal output */
    signed char fVerbose;    /* true if we are to be verbose */
    signed char fByteOffset; /* display byte offset in file */
    signed char fTextual;    /* display context textual */
