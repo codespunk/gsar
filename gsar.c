@@ -85,6 +85,7 @@ char  fFilter        = 0;  /* automatically selected stdin/stdout filter */
 char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 char  fListWithoutMatches = 0; /* list files without matches */
 char  fListWithMatches = 0; /* list files with matches */
+char  fCountOnly = 0; /* print binary occurrence counts */
 long  nMaxMatches = -1L; /* -1 means unlimited; applies to searches only */
 
 /* Usage text
@@ -108,6 +109,7 @@ char *Usage[] =
   "-L         List input files without matches",
   "-l         List input files containing matches",
   "-m N       Stop after N matches per input (0 means no matches)",
+  "-C         Count binary pattern occurrences per input",
   "Search exit status: 0=match, 1=no match, 2=error",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
@@ -365,7 +367,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsL")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:m:r::iBfoc::x::blhtd::u::qsLC")) != EOF)
       {
          switch (c)
          {
@@ -402,6 +404,9 @@ int GetArgs(int argc, char *argv[])
                   Abort("error, unable to allocate file argument list");
                pFileList[j++] = pOptArg;
                pFileList[j] = NULL;
+               break;
+            case 'C':
+               fCountOnly = 1;
                break;
             case 'm':
                if (pOptArg == NULL || *pOptArg == '\0')
@@ -605,7 +610,9 @@ long StreamSearchReplace(void)
           (fListWithMatches && nMatches > 0))
          fprintf(stdout, "%s\n", Ctrl.pInputFile);
 
-      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches && !fListWithMatches)
+      if (fCountOnly)
+         fprintf(stdout, "%s: %ld\n", Ctrl.pInputFile, nMatches);
+      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches && !fListWithMatches && !fCountOnly)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
@@ -727,7 +734,9 @@ int FileSearch(void)
             return 0;
       }
 
-      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches && !fListWithMatches)
+      if (fCountOnly)
+         fprintf(stdout, "%s: %ld\n", Ctrl.pInputFile, nMatches);
+      if (nMatches > 0 && !Ctrl.fQuiet && !fListWithoutMatches && !fListWithMatches && !fCountOnly)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
@@ -997,6 +1006,13 @@ int main(int argc, char *argv[])
 
    if (i != 2 && fForce && !fOverWrite)
       Abort("command error, two file names are required to use the 'f' option");
+
+   if (fCountOnly && (fSearchReplace || Ctrl.fQuiet ||
+                      fListWithoutMatches || fListWithMatches))
+      Abort("command error, -C cannot be combined with replacement, -q, -l, or -L");
+
+   if (fCountOnly)
+      Ctrl.fVerbose = 0;
 
    /* set up the search pattern once and for all
     */
