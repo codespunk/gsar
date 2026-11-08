@@ -95,6 +95,7 @@ char *Usage[] =
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
+  "Search exit status: 0=match, 1=no match, 2=error",
   "-B         just display search & replace Buffers",
   "-f         Force overwrite of an existing output file",
   "-o         Overwrite the existing input file",
@@ -130,7 +131,7 @@ void Abort(char *pMessage, ...)
    vfprintf(stderr, pMessage, argp);
    va_end(argp);
    fprintf(stderr, "\n");
-   exit(EXIT_FAILURE);  /* exit & tell operating system that we've failed */
+   exit(2);  /* grep-compatible error status */
 }
 
 
@@ -149,7 +150,7 @@ void CtrlBreak(int Val)
    if (fSearchReplace && pOutFile != NULL && !fFilter)
       remove(pOutFile);
 
-   exit(EXIT_FAILURE);  /* exit & tell operating system that we've failed */
+   exit(2);  /* grep-compatible error status */
 }
 
 
@@ -590,17 +591,22 @@ int FileSearch(void)
 {
    long  nMatches;
    int   fFound = 0;
+   int   fError = 0;
 
    while (*pFileList != NULL)
    {
       Ctrl.pInputFile = *pFileList++;
 
       if (!fCheckFile(Ctrl.pInputFile))
+      {
+         fError = 1;
          continue;
+      }
 
       if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
       {
          fprintf(Ctrl.fpMsg, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+         fError = 1;
          continue;
       }
 
@@ -627,7 +633,9 @@ int FileSearch(void)
          fprintf(Ctrl.fpMsg, "%s: %ld match%s found\n",
                  Ctrl.pInputFile, nMatches, (nMatches == 1) ? "" : "es");
    }
-   return Ctrl.fQuiet && !fFound ? 1 : 0;
+   if (fError)
+      return 2;
+   return fFound ? 0 : 1;
 }
 
 /* Performs a search and replace on a specific outputfile
@@ -691,7 +699,7 @@ void OneSearchReplace(void)
       fprintf(Ctrl.fpMsg, "gsar: error in writing file '%s' - cleaning up\n", pOutFile);
       if (remove(pOutFile) != 0)
          Abort("error, unable to remove output file '%s'", pOutFile);
-      exit(EXIT_FAILURE);  /* exit & tell operating system that we've failed */
+      exit(2);  /* grep-compatible error status */
    }
 
    if (nMatches == 0)
@@ -887,7 +895,9 @@ int main(int argc, char *argv[])
          Abort("command error, the 'o' or 'f' option is meaningless in 'filter' mode");
 
       nMatches = StreamSearchReplace();
-      return Ctrl.fQuiet ? (nMatches > 0 ? 0 : 1) : EXIT_SUCCESS;
+      if (!fSearchReplace)
+         return nMatches > 0 ? 0 : 1;
+      return EXIT_SUCCESS;
    }
 
    /* just perform a file search
