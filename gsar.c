@@ -82,6 +82,7 @@ char  fOverWrite     = 0;  /* overwrite input file */
 char  fForce         = 0;  /* force overwrite of existing output file */
 char  fBuffers       = 0;  /* just display search & replace buffers */
 char  fFilter        = 0;  /* make GSAR act like a filter */
+char  fSuppressErrors = 0; /* suppress file-access diagnostics */
 
 /* Usage text
  */
@@ -91,7 +92,8 @@ char *Usage[] =
   "",
   "Usage: gsar [options] [infile(s)] [outfile]",
   "Options are:",
-  "-s<string> Search string ",
+  "-e<string> Search string",
+  "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
   "-i         Ignore case difference when comparing strings",
   "-q         Quiet search; stop at first match (0=found, 1=not found)",
@@ -353,7 +355,7 @@ int GetArgs(int argc, char *argv[])
    pFileList = NULL;
 
    if (argc > 1)
-      while ((c = GetOpt(argc, argv, "|s::r::iBfoc::x::blhd::u::Fq")) != EOF)
+      while ((c = GetOpt(argc, argv, "|e:r::iBfoc::x::blhd::u::Fqs")) != EOF)
       {
          switch (c)
          {
@@ -386,7 +388,7 @@ int GetArgs(int argc, char *argv[])
                }
                exit(EXIT_SUCCESS);
                break;
-            case 's':
+            case 'e':
                if (pOptArg == NULL)
                   Abort("command error, the '%c' option requires an argument", (unsigned char) CurOpt);
                
@@ -442,6 +444,9 @@ int GetArgs(int argc, char *argv[])
                break;
             case 'q':
                Ctrl.fQuiet = 1;
+               break;
+            case 's':
+               fSuppressErrors = 1;
                break;
             case 'B':
                fBuffers = 1;
@@ -570,13 +575,15 @@ char fCheckFile(char *pFileName)
 
    if (stat(pFileName, &buf) != 0)
    {
-      fprintf(stderr, "gsar: unable to open input file '%s'\n", pFileName);
+      if (!fSuppressErrors)
+         fprintf(stderr, "gsar: unable to open input file '%s'\n", pFileName);
       return 0;
    }
 
    if (!(S_ISREG(buf.st_mode)))
    {
-      fprintf(stderr, "gsar: warning, not a regular file '%s'\n", pFileName);
+      if (!fSuppressErrors)
+         fprintf(stderr, "gsar: warning, not a regular file '%s'\n", pFileName);
       return 0;
    }
 
@@ -605,7 +612,8 @@ int FileSearch(void)
 
       if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
       {
-         fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+         if (!fSuppressErrors)
+            fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
          fError = 1;
          continue;
       }
@@ -747,7 +755,8 @@ void SearchReplace(void)
 
       if ((Ctrl.fpIn = fopen(Ctrl.pInputFile, "rb")) == NULL)
       {
-         fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
+         if (!fSuppressErrors)
+            fprintf(stderr, "gsar: unable to open input file '%s'\n", Ctrl.pInputFile);
          continue;
       }
 
