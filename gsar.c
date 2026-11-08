@@ -515,7 +515,7 @@ long StreamSearchReplace(void)
    long  nMatches;
 
    Ctrl.pInputFile = "stdin";      /* proper filename   */
-   Ctrl.fpMsg = stderr;            /* redirect messages */
+   Ctrl.fpMsg = fSearchReplace ? stderr : stdout; /* keep binary replacement output clean */
 
 #ifdef MSDOS
    /* when MSDOS operates on streams it translates characters and terminates
