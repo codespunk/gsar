@@ -95,6 +95,7 @@ char *Usage[] =
   "-e<string> Explicit search string (instead of positional pattern)",
   "           Pattern is the first non-option argument unless -e is used",
   "           Use -- to end options (for patterns or filenames starting with -)",
+  "           A single - input filename reads stdin",
   "           Search reads stdin when no input file is given and stdin is redirected",
   "-s         Suppress file-access error messages",
   "-r[string] Replace string. Use '-r' to delete the search string from the file",
@@ -383,13 +384,18 @@ int GetArgs(int argc, char *argv[])
                Abort("command error, unknown option '%c'. Type 'gsar' by itself help", (unsigned char) CurOpt);
                break;
             case MISSING_OPT:
-               i = 0;
-               while (Usage[i] != NULL)
-               {
-                  fputs(Usage[i++], Ctrl.fpMsg);
-                  fputc('\n', Ctrl.fpMsg);
-               }
-               exit(EXIT_SUCCESS);
+               /* A lone '-' denotes stdin, not a help request. */
+               ++OptInx;
+               pOptArg = "-";
+               /* fall through to the positional-argument handler */
+               if (pFileList == NULL)
+                  pFileList = (char **) malloc((j + 2) * sizeof(char *));
+               else
+                  pFileList = (char **) realloc(pFileList, (j + 2) * sizeof(char *));
+               if (pFileList == NULL)
+                  Abort("error, unable to allocate file argument list");
+               pFileList[j++] = pOptArg;
+               pFileList[j] = NULL;
                break;
             case 'e':
                if (pOptArg == NULL)
@@ -920,6 +926,10 @@ int main(int argc, char *argv[])
    /* Search redirected stdin automatically when no files were given.
     * Preserve the explicit -F requirement for replacement filters.
     */
+   if (i == 1 && !fFilter && !fSearchReplace &&
+       strcmp(pFileList[0], "-") == 0)
+      fFilter = 1;
+
    if (i == 0 && !fFilter && !fSearchReplace)
    {
       if (!isatty(fileno(stdin)))
